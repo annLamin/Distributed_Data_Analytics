@@ -6,8 +6,8 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # Define the full vectors
-full_x = np.array([0,1,2,3,4,5], dtype=np.float64)
-full_y = np.array([6,7,8,9,10,11], dtype=np.float64)
+full_x = np.array([0, 1, 2, 3, 4, 5], dtype=np.float64)
+full_y = np.array([6, 7, 8, 9, 10, 11], dtype=np.float64)
 n = len(full_x)
 
 # Calculate the size of each chunk
@@ -18,22 +18,27 @@ remainder = n % size
 start = rank * chunk_size + min(rank, remainder)
 end = (rank + 1) * chunk_size + min(rank + 1, remainder)
 
-# Distribute the data using scatter (or manual slicing)
+# Distribute the data using slicing
 local_x = full_x[start:end]
 local_y = full_y[start:end]
 
-# Perform local multiplication
+# Perform local multiplication and calculate the local sum
 local_result = local_x * local_y
-print(f"Rank: {rank},Local x Size : {local_x.size}, Shape :{local_x.shape}, Length : {len(local_x)} ")
-print(f"Rank: {rank},Local y Size : {local_y.size}, Shape :{local_y.shape}, Length : {len(local_y)} ")
-# Gather the local results to the root process
-gathered_results = comm.gather(local_result, root=0)
+local_sum = np.sum(local_result)
+print(f"Rank {rank}: Local sum = {local_sum}")
 
-# Perform the final summation on the root process
+global_sum = 0.0
 if rank == 0:
-    global_sum = np.sum(np.concatenate(gathered_results))
+    global_sum = local_sum
+    for i in range(1, size):
+        received_sum = comm.recv(source=i, tag=11)
+        global_sum += received_sum
     print("Full Vector x:", full_x)
     print("Full Vector y:", full_y)
     print("Global sum of the element-wise product:", global_sum)
+elif rank != size - 1:
+    comm.send(local_sum, dest=rank + 1, tag=11)
+else:  # Last rank
+    comm.send(local_sum, dest=0, tag=11)
 
 MPI.Finalize()
