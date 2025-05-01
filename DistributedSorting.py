@@ -19,7 +19,7 @@ bin_size = math.ceil((max_data - min_data) / size)
 # Distribute data to processors (only on rank 0)
 new_list = None
 if rank == 0:
-    new_list = [[] for _ in range(size)]
+    new_list = [[] for i in range(size)]
     for x in data:
         bin_index = min(size - 1, math.floor((x - min_data) / bin_size))
         new_list[bin_index].append(x)
@@ -27,7 +27,7 @@ if rank == 0:
 # Scatter the lists among the processors
 local_data = comm.scatter(new_list, root=0)
 
-# Sort each local chunk
+# each chunk is sorted locally on its own processor
 local_data.sort()
 
 # Gather the sorted lists back to the root process
@@ -39,4 +39,4 @@ if rank == 0:
     if sorted_chunks:
         for chunk in sorted_chunks:
             sorted_data.extend(chunk)
-print("Sorted data (first 20 elements):", sorted_data)
+print("Sorted Data", sorted_data) 

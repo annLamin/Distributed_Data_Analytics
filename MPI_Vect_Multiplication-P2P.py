@@ -3,12 +3,13 @@ import numpy as np
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-size = comm.Get_size()
+size = comm.Get_size()  # Number of processes                                           
 
 # Define the full vectors
 full_x = np.array([0, 1, 2, 3, 4, 5], dtype=np.float64)
 full_y = np.array([6, 7, 8, 9, 10, 11], dtype=np.float64)
-n = len(full_x)
+# n = len(full_x)
+n = 6
 
 # Calculate the size of each chunk
 chunk_size = n // size
