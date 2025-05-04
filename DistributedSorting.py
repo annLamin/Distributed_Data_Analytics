@@ -1,42 +1,51 @@
 from mpi4py import MPI
-import math
 import numpy as np
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-# Example data
-data = list(range(10000))
-np.random.shuffle(data)
-
-min_data = min(data)
-max_data = max(data)
-
-# Bin size calculation
-bin_size = math.ceil((max_data - min_data) / size)
-
-# Distribute data to processors (only on rank 0)
-new_list = None
-if rank == 0:
-    new_list = [[] for i in range(size)]
-    for x in data:
-        bin_index = min(size - 1, math.floor((x - min_data) / bin_size))
-        new_list[bin_index].append(x)
-
-# Scatter the lists among the processors
-local_data = comm.scatter(new_list, root=0)
-
-# each chunk is sorted locally on its own processor
-local_data.sort()
-
-# Gather the sorted lists back to the root process
-sorted_chunks = comm.gather(local_data, root=0)
+def selection_sort(arr):
+    for i in range(len(arr)):
+        min_index = i
+        for j in range(i + 1, len(arr)):
+            if arr[j] < arr[min_index]:
+                min_index = j
+        arr[i], arr[min_index] = arr[min_index], arr[i]
+    return arr
 
 if rank == 0:
-    # Combine the sorted lists
-    sorted_data = []
-    if sorted_chunks:
-        for chunk in sorted_chunks:
-            sorted_data.extend(chunk)
-print("Sorted Data", sorted_data) 
+    my_list = list(range(10000))
+    np.random.shuffle(my_list)
+    chunks = np.array_split(my_list, size)
+else:
+    chunks = None
+
+local_chunk = comm.scatter(chunks, root=0)
+local_chunk = selection_sort(list(local_chunk))
+
+sorted_chunks = comm.gather(local_chunk, root=0)
+
+if rank == 0:
+    pointers = [0] * size
+    final_sorted = []
+
+    while True:
+        min_val = None
+        min_index = -1
+
+        for i in range(size):
+            pos = pointers[i]
+            if pos < len(sorted_chunks[i]):
+                current_value = sorted_chunks[i][pos]
+                if min_val is None or current_value < min_val:
+                    min_val = current_value
+                    min_index = i
+            # print(f"Rank {rank} checking chunk {i}: {sorted_chunks[i]} with pointer {pointers[i]}")
+            # print(final_sorted)
+        if min_index == -1:
+            break
+        
+        final_sorted.append(min_val)
+        pointers[min_index] += 1
+    print("Final sorted list:", final_sorted)  
